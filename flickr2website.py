@@ -8,6 +8,7 @@ import os
 import flickrapi
 import flickr_keys
 import sqlite3
+import webbrowser
 
 class flickr2website:
 
@@ -147,7 +148,7 @@ class flickr2website:
             sqliteConn.execute(sql)
             
             for row in sqliteConn.execute('SELECT * FROM sets ORDER BY id LIMIT 1'):
-                #print row[3]
+                print row[2]
                 feeder_photoset_id=row[3]
                 
             try:
@@ -201,6 +202,7 @@ class flickr2website:
 
                     
     def render(self,sqliteConn):
+            websitefolder='website'
             for row in sqliteConn.execute('SELECT * FROM sets ORDER BY id LIMIT 1'):
                 #print row[3]
                 #feeder_photoset_id=row[3]
@@ -209,7 +211,9 @@ class flickr2website:
                 pp = pprint.PrettyPrinter()
                 #pp.pprint(row)
                 pagename=row[2]
-                filename = os.path.join('post',pagename.replace(' ','_')+'.md')
+                if not os.path.exists(os.path.join(websitefolder,'content','post')):
+                    os.makedirs(os.path.join(websitefolder,'content','post'))
+                filename = os.path.join(websitefolder,'content','post',pagename.replace(' ','_')+'.md')
                 print filename
                 f = open(filename,'w')
                 f.write('+++\n')
@@ -238,8 +242,7 @@ class flickr2website:
      
         self.flickrLogin(sqliteConn)
         #self.loadSets(sqliteConn)
-        #self.crawlPhotos(sqliteConn)
-                
+        #self.crawlPhotos(sqliteConn)       
         self.render(sqliteConn)
                 
         sqliteConn.close()

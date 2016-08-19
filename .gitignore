@@ -1,4 +1,8 @@
 flickr_keys.py
+website/
+*~
+oauth-tokens.sqlite
+*.sqlite
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
