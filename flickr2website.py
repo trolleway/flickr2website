@@ -117,23 +117,21 @@ class flickr2website:
             sqliteConn.execute(sql)
             
             for collection in collections['collections']['collection']:
-                #print value
-                #print value
-                #print collection['title']
+
                 if 'set' in collection:
                     currentCollection=collection['title']
-                    print len(collection['set'])
+                    print str(len(collection['set'])) + ' sets in collection '+ collection['title']
                     for set in collection['set']:
-                        #pp.pprint(set)
+
                         sql='INSERT INTO sets (title,name,setId) VALUES(?, ?, ?);'
-                        #print sql.encode('UTF-8')
+
                         sqliteConn.execute(sql,[collection['title'],set['title'],set['id']])
         
-                #print 
+
             self.sqlite.commit()
             
             for row in sqliteConn.execute('SELECT * FROM sets ORDER BY id'):
-                #print row
+
                 pass
         
         
@@ -141,69 +139,73 @@ class flickr2website:
         
     def crawlPhotos(self,sqliteConn):
         
-            #my home windows install sort of broken, so i din not use spatial extensions    
+            #my home windows install sort of broken, so i did not use spatial extensions    
             sql='CREATE TABLE setsphotos (id INTEGER PRIMARY KEY, set_id INTEGER, photo_id INTEGER, title TEXT, urlOriginal text, urlLarge text, lat text, lon text, description TEXT, url TEXT, equirectangular Boolean);'
             sqliteConn.execute(sql)            
             sql='CREATE TABLE tags (id INTEGER PRIMARY KEY, photo_id INTEGER, tag TEXT, machine_tag BOOLEAN);'
             sqliteConn.execute(sql)
             
-            for row in sqliteConn.execute('SELECT * FROM sets ORDER BY id LIMIT 1'):
-                print row[2]
+            for row in sqliteConn.execute('SELECT * FROM sets ORDER BY id'):
+                print 'crawl photos in set ' + str(row[2].encode('utf-8'))
                 feeder_photoset_id=row[3]
                 
-            try:
-                photos = self.flickr.photosets.getPhotos(photoset_id = feeder_photoset_id,user_id=self.conf_user)
-            except Exception as e:
-                print ('ERROR. Cannot get photo in set '+feeder_photoset_id)
-                return 0
-            else:
-                pass
-                
+                try:
+                    photos = self.flickr.photosets.getPhotos(photoset_id = feeder_photoset_id,user_id=self.conf_user)
+                except Exception as e:
+                    print ('ERROR. Cannot get photo in set '+feeder_photoset_id)
+                    return 0
 
-            
-            
-            for photo in photos['photoset']['photo']:    
-                #print type(photo)
-                dbPhoto=dict()
-                photo_id=photo['id']
-                dbPhoto['id']=photo['id']
-                dbPhoto['title']=photo['title']
-                photo_data = self.flickr.photos.getSizes(photo_id=photo_id)
-                
-                for d in photo_data['sizes']['size']:
-                    if d['label']=='Original':
-                        dbPhoto['urlSource']=d['source']
-                    if d['label']=='Large':
-                        dbPhoto['urlLarge']=d['source']
-                
+                    
 
-                photoInfo=self.flickr.photos.getInfo(photo_id=photo_id)
+                
+                
+                for photo in photos['photoset']['photo']:    
+                    dbPhoto=dict()
+                    photo_id=photo['id']
+                    dbPhoto['id']=photo['id']
+                    dbPhoto['title']=photo['title']
+                    photo_data = self.flickr.photos.getSizes(photo_id=photo_id)
+                    
+                    for d in photo_data['sizes']['size']:
+                        if d['label']=='Original':
+                            dbPhoto['urlSource']=d['source']
+                        if d['label']=='Large':
+                            dbPhoto['urlLarge']=d['source']
+                    if ('urlLarge' not in dbPhoto): 
+                        dbPhoto['urlLarge'] = dbPhoto['urlSource']
+                    
 
-                location = photoInfo['photo'].get('location',dict())
-                dbPhoto['lat']=str(location.get('latitude',''))
-                dbPhoto['lon']=str(location.get('longitude',''))
-                dbPhoto['description']=photoInfo['photo']['description']['_content']
-                dbPhoto['url']=photoInfo['photo']['urls']['url'][0]['_content']
-                
-                #pp.pprint(photoInfo)
-                #quit()
-                equirectangular=0
-                for tag in photoInfo['photo']['tags']['tag']:
-                    sql='INSERT INTO tags (photo_id, tag, machine_tag) VALUES(?, ?, ?);'
-                    sqliteConn.execute(sql,[dbPhoto['id'], tag['_content'], tag['machine_tag'] ])
-                    self.sqlite.commit()
-                    if (tag['_content']=='equirectangular'):
-                        equirectangular=1
-                        
-                sql='INSERT INTO setsphotos (set_id , photo_id , title , urlOriginal , urlLarge , lat,  lon , description, url, equirectangular) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
-                sqliteConn.execute(sql,[feeder_photoset_id, dbPhoto['id'], dbPhoto['title'], dbPhoto['urlSource'], dbPhoto['urlLarge'], dbPhoto['lat'], dbPhoto['lon'], dbPhoto['description'], dbPhoto['url'],equirectangular ])
-                self.sqlite.commit()    
-                
+                    photoInfo=self.flickr.photos.getInfo(photo_id=photo_id)
+
+                    location = photoInfo['photo'].get('location',dict())
+                    dbPhoto['lat']=str(location.get('latitude',''))
+                    dbPhoto['lon']=str(location.get('longitude',''))
+                    dbPhoto['description']=photoInfo['photo']['description']['_content']
+                    dbPhoto['url']=photoInfo['photo']['urls']['url'][0]['_content']
+                    
+                    #pp.pprint(photoInfo)
+                    #quit()
+                    equirectangular=0
+                    for tag in photoInfo['photo']['tags']['tag']:
+                        sql='INSERT INTO tags (photo_id, tag, machine_tag) VALUES(?, ?, ?);'
+                        sqliteConn.execute(sql,[dbPhoto['id'], tag['_content'], tag['machine_tag'] ])
+                        self.sqlite.commit()
+                        if (tag['_content']=='equirectangular'):
+                            equirectangular=1
+                            
+                    try:
+                        sql='INSERT INTO setsphotos (set_id , photo_id , title , urlOriginal , urlLarge , lat,  lon , description, url, equirectangular) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
+                        sqliteConn.execute(sql,[feeder_photoset_id, dbPhoto['id'], dbPhoto['title'], dbPhoto['urlSource'], dbPhoto['urlLarge'], dbPhoto['lat'], dbPhoto['lon'], dbPhoto['description'], dbPhoto['url'],equirectangular ])
+                        self.sqlite.commit()    
+                        print dbPhoto['title']
+                    except Exception as e:
+                        print ('ERROR. photo='+str(dbPhoto['id']) , sys.exc_info())
+                        return 0               
 
                     
     def render(self,sqliteConn):
             websitefolder='website'
-            for row in sqliteConn.execute('SELECT * FROM sets ORDER BY id LIMIT 1'):
+            for row in sqliteConn.execute('SELECT * FROM sets ORDER BY id'):
                 #print row[3]
                 #feeder_photoset_id=row[3]
                 #print cur.fetchone()["name"]
@@ -214,11 +216,22 @@ class flickr2website:
                 if not os.path.exists(os.path.join(websitefolder,'content','post')):
                     os.makedirs(os.path.join(websitefolder,'content','post'))
                 filename = os.path.join(websitefolder,'content','post',pagename.replace(' ','_')+'.md')
-                print filename
+                print 'write page to '+filename
                 f = open(filename,'w')
                 f.write('+++\n')
                 f.write('title = "'+row[2]+'"\n')
+                f.write('date = "1970-01-01"\n')
+                f.write('tags = [ ]"\n')
+                f.write('categories = [ ]"\n')
+
                 f.write('+++\n')
+
+                print 'SELECT * FROM setsphotos WHERE set_id ="'+row[3]+'" ORDER BY id '
+
+                for rowPhoto in sqliteConn.execute('SELECT * FROM setsphotos WHERE set_id ="'+row[3]+'" ORDER BY id '):
+                    f.write( '<a data-flickr-embed="true" data-footer="true"  href="'+rowPhoto[9]+'" title="Moscow Rublevo appartments"><img src="'+rowPhoto[5]+'" alt="'+rowPhoto[3]+'"></a><script async src="//embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>')
+                    f.write("</br> \n")
+
                 f.close()
             
     def dropdb(self):
@@ -241,8 +254,8 @@ class flickr2website:
     
      
         self.flickrLogin(sqliteConn)
-        #self.loadSets(sqliteConn)
-        #self.crawlPhotos(sqliteConn)       
+        self.loadSets(sqliteConn)
+        self.crawlPhotos(sqliteConn)       
         self.render(sqliteConn)
                 
         sqliteConn.close()
