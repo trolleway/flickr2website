@@ -229,8 +229,8 @@ class flickr2website:
                 print 'SELECT * FROM setsphotos WHERE set_id ="'+row[3]+'" ORDER BY id '
 
                 for rowPhoto in sqliteConn.execute('SELECT * FROM setsphotos WHERE set_id ="'+row[3]+'" ORDER BY id '):
-                    f.write( '<a data-flickr-embed="true" data-footer="true"  href="'+rowPhoto[9]+'" title="Moscow Rublevo appartments"><img src="'+rowPhoto[5]+'" alt="'+rowPhoto[3]+'"></a><script async src="//embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>')
-                    f.write("</br> \n")
+                    f.write(u'<a data-flickr-embed="true" data-footer="true"  href="{url}" title="HARDCODED"><img src="{src}" alt="{alt}"></a><script async src="http://embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>'.format(url=rowPhoto[9],src=rowPhoto[5],alt=rowPhoto[3]) )
+					f.write("</br> \n")
 
                 f.close()
             
